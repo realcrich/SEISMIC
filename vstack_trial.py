@@ -36,10 +36,10 @@ ddirs = [
 ]
 
 stack_size = 8
-skip_vals = ['32999', '32256', '32569', 
-             '38993', '38994', '38995', '38996', '38997',
-             '38998', '38999', '39000']#, 
-             #'32930', '32931', '32932', '32933', '32934'
+skip_vals = ['32999', '32256', '32569'], 
+             #'38993', '38994', '38995', '38996', '38997',
+             #'38998', '38999', '39000']#, 
+             #'32930', '32931', '32932', '32933', '32934',
              #'32935', '32936']
 
 outdir = 'C:/Users/datco/Downloads/southern_sierra/data/contents/P304/Seismic/T1/stacks/'
@@ -57,61 +57,70 @@ n_tr, n_pts = sample_st[0].stats.npts * 0 + len(sample_st), sample_st[0].stats.n
 
 for ddir in ddirs:
 
-    #skips_T1: = ['32930','32931','32932','32933','32934','32935','32936']
-    
-    # Collect & filter files
     flist = [
         os.path.join(ddir, f) for f in os.listdir(ddir)
-        if f.endswith('.dat') and f[-9:-4] not in skip_vals
-        #and f[-9:-4] not in skips_T1
-        ]
-
-    # Ensure correct order (critical!)
+        if f.endswith(".dat") and f[-9:-4] not in skip_vals
+    ]
     flist = sorted(flist)
 
     print(f"\nDirectory: {ddir}")
     print(f"Found {len(flist)} usable files.")
 
-    # Loop through files in 8-file chunks
-    for i in range(0, len(flist), stack_size): 
+    i = 0
+    nfiles = len(flist)
 
+    while i < nfiles:
+
+        # Proposed 8-file chunk
         cstack = flist[i:i + stack_size]
 
-        # Skip last incomplete chunk
-        if len(cstack) < stack_size:
-            print(f"Skipping last partial chunk ({len(cstack)} files).")
-            continue
+        # --- CASE 1: Special 7-file stack starting with 32930 ---
+        if '32930' in cstack[0]:
+            cstack = cstack[:-1]      # force 7 files
+            step = 7                  # advance by 7
+            print(f"Special 7-file stack triggered at index {i}")
 
-        # Extract shot numbers from filenames
+        # --- CASE 2: Normal full 8 files ---
+        elif len(cstack) == stack_size:
+            step = stack_size         # advance by 8
+
+        # --- CASE 3: Incomplete leftover chunk (skip it) ---
+        else:
+            print(f"Skipping last partial chunk ({len(cstack)} files).")
+            break
+
+        # Extract shot numbers from first/last file in cstack
         shot0 = cstack[0][-9:-4]
         shotf = cstack[-1][-9:-4]
+        print(f"Stacking {len(cstack)} files: {shot0}–{shotf}")
 
-        print(f"Stacking {stack_size} files: {shot0}–{shotf}")
+        # Allocate stack based on actual number of files
+        d_stack = np.empty((len(cstack), n_tr, n_pts))
 
-        # Allocate stack array
-        d_stack = np.empty((stack_size, n_tr, n_pts))
-
-        # Read all 8 files into stack array
+        # Load all traces into d_stack
         for j, fname in enumerate(cstack):
             st = op.read(fname)
             d = np.array([tr.data for tr in st])
+
             if len(d) == n_tr:
                 d_stack[j] = d
             else:
                 d_stack[j] = np.zeros((n_tr, n_pts))
                 d_stack[j][:len(d)] = d
 
-        # Compute average
+        # Compute the average
         d_out = np.mean(d_stack, axis=0)
 
-        # Build output stream from template
+        # Use template to create output SEGY
         st_template = op.read(f_samp)
         for k, tr in enumerate(st_template):
             tr.data = d_out[k].astype(np.float32)
 
-        # Write SEGY
         outname = f"{shot0}-{shotf}_stack.segy"
         outpath = os.path.join(outdir, outname)
-        st_template.write(outpath, format='SEGY')
+        st_template.write(outpath, format="SEGY")
 
         print(f" → Wrote {outname}")
+
+        # Advance index correctly
+        i += step
