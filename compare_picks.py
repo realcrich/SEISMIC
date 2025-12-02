@@ -87,7 +87,8 @@ def parse_my_vs_folder(folder):
 
     for fname in os.listdir(folder):
         if fname.endswith("_picks.vs"):
-            shot_number = int(fname.split("_")[0])  # e.g. "600_picks.vs" → 600
+            shot_number = fname.split("_")[0]
+            #shot_number = int(fname.split("_")[0])  # e.g. "600_picks.vs" → 600
             filepath = os.path.join(folder, fname)
 
             with open(filepath, "r") as f:
@@ -157,16 +158,21 @@ def compare_shots(shot_dict, my_shot_dict, shot_number, ms=True):
     
 #test_x, test_t, my_x, my_t = compare_shots(shot_dict, my_shot_dict, shot_number=600)
 
-def read_out_shots(my_shot_dict, shot, outdir="C:/Users/Collin/SEISMIC/compare_picks/"):
+def read_out_shots(my_shot_dict, shot, outdir):
+    
+    '''
     if shot not in my_shot_dict:
         print(f"Shot {shot} not found in my_shot_dict.")
         return
-
+    '''
     # Define receiver x positions (96 receivers, 0–237.5 m in 2.5 m steps)
-    x_positions = np.arange(0, 240, 2.5)
+    #x_positions = np.arange(0, 240, 2.5)
+    # Define receiver x positions (X receivers, 0–237.5 m in 1 0 m steps)
+    x_positions = np.arange(0, 240, 1.0)
 
     # Build lookup dict for fast access
-    picks = {rec["x"]: rec["t_obs"]/1000 for rec in my_shot_dict[shot]}  # convert ms → s
+    picks = {rec["x"]: rec["t_obs"] for rec in my_shot_dict[shot]}
+    #picks = {rec["x"]: rec["t_obs"]/1000 for rec in my_shot_dict[shot]}  # convert ms → s
     fill_value = -999.031250
 
     # Construct output rows
@@ -184,9 +190,11 @@ def read_out_shots(my_shot_dict, shot, outdir="C:/Users/Collin/SEISMIC/compare_p
     print(f"Saved: {outfile}")
     return data
 
-def write_all_shots(my_shot_dict, outfile="C:/Users/Collin/SEISMIC/compare_picks/all_firstbreaks.txt"):
+def write_all_shots(my_shot_dict, outfile):
     # Define receiver x positions (96 receivers, 0–237.5 m in 2.5 m steps)
-    x_positions = np.arange(0, 240, 2.5)
+    #x_positions = np.arange(0, 240, 2.5)
+    # Define receiver x positions (96 receivers, 0–237.5 m in 2.5 m steps)
+    x_positions = np.arange(0, 240, 1.0)
     fill_value = -999.031250
 
     with open(outfile, "w") as f:
@@ -195,7 +203,8 @@ def write_all_shots(my_shot_dict, outfile="C:/Users/Collin/SEISMIC/compare_picks
             f.write("x\tT_OBS\n")
 
             # Build lookup dict for fast access
-            picks = {rec["x"]: rec["t_obs"]/1000 for rec in my_shot_dict[shot]}  # ms → s
+            picks = {rec["x"]: rec["t_obs"]for rec in my_shot_dict[shot]}
+            #picks = {rec["x"]: rec["t_obs"]/1000 for rec in my_shot_dict[shot]}  # ms → s
 
             # Write rows for all receivers
             for x in x_positions:
@@ -206,12 +215,14 @@ def write_all_shots(my_shot_dict, outfile="C:/Users/Collin/SEISMIC/compare_picks
 
     print(f"Saved all shots to {outfile}")
 
-shot_dict = parse_test_picks("C:/Users/Collin/Downloads/BW_080714_2/BW_080714_2/Seismic/comp_picks.txt")
-folder = "C:/Users/Collin/Downloads/BW_080714_2/BW_080714_2/Seismic/Deployment1"
+#shot_dict = parse_test_picks("C:/Users/Collin/Downloads/BW_080714_2/BW_080714_2/Seismic/comp_picks.txt")
+#folder = "C:/Users/Collin/Downloads/BW_080714_2/BW_080714_2/Seismic/Deployment1"
+folder = 'C:/Users/datco/Downloads/southern_sierra/data/contents/P304/Seismic/T2/picks'
 my_shot_dict = parse_my_vs_folder(folder)
 
-for shot in range(600,631):
-    compare_shots(shot_dict, my_shot_dict, shot_number=shot)
-    read_out_shots(my_shot_dict, shot)
+#for shot in range(600,631):
+for shot in my_shot_dict.keys():
+    #compare_shots(shot_dict, my_shot_dict, shot_number=shot)
+    read_out_shots(my_shot_dict, shot, outdir=folder+'/all_picks/')
     
-write_all_shots(my_shot_dict)
+write_all_shots(my_shot_dict, outfile=folder+'/all_firstbreaks.ttx')
